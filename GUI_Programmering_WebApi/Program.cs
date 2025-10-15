@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using GUI_Programmering_WebApi.Models;
+using GUI_Programmering_WebApi;
+
+MapsterConfiguration.ConfigureMappings();
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,7 +12,7 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddDbContext<GuiWebApiDatabaseContext>(
+builder.Services.AddDbContext<DatabaseContext>(
  o => o.UseSqlServer(builder.Configuration.GetConnectionString("SqlServer")));
 
 var app = builder.Build();

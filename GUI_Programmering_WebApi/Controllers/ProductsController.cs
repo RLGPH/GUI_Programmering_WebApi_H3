@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GUI_Programmering_WebApi.Models;
+using Mapster;
 
 namespace GUI_Programmering_WebApi.Controllers
 {
@@ -8,96 +9,84 @@ namespace GUI_Programmering_WebApi.Controllers
     [ApiController]
     public class ProductsController : ControllerBase
     {
-        private readonly GuiWebApiDatabaseContext _context;
+        private readonly DatabaseContext _context;
 
-        public ProductsController(GuiWebApiDatabaseContext context)
+        public ProductsController(DatabaseContext context)
         {
             _context = context;
         }
 
         // GET: api/Products
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<ProductDTO>>> GetProducts()
+        public async Task<ActionResult<IEnumerable<ProductWithRelationDTO>>> GetProducts()
         {
             var products = await _context.Products
-                .Select(p => new ProductDTO
-                {
-                    ProductId = p.ProductId,
-                    ProductName = p.ProductName,
-                    ProductPrice = p.ProductPrice,
-                    CategoryId = p.CategoryId
-                })
+                .Include(p => p.Category)
                 .ToListAsync();
 
-            return Ok(products);
+            var productDtos = products.Adapt<List<ProductWithRelationDTO>>();
+            return Ok(productDtos);
         }
 
         // GET: api/Products/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<ProductDTO>> GetProduct(int id)
+        public async Task<ActionResult<ProductWithRelationDTO>> GetProduct(int id)
         {
-            var product = await _context.Products.FindAsync(id);
+            var product = await _context.Products
+                .Include(p => p.Category)
+                .FirstOrDefaultAsync(p => p.ProductId == id);
 
             if (product == null)
                 return NotFound();
 
-            var dto = new ProductDTO
-            {
-                ProductId = product.ProductId,
-                ProductName = product.ProductName,
-                ProductPrice = product.ProductPrice,
-                CategoryId = product.CategoryId
-            };
-
+            var dto = product.Adapt<ProductWithRelationDTO>();
             return Ok(dto);
+        }
+
+        // GET: api/Products/Category/5
+        [HttpGet("Category/{categoryId}")]
+        public async Task<ActionResult<IEnumerable<ProductWithRelationDTO>>> GetProductsByCategory(int categoryId)
+        {
+            var products = await _context.Products
+                .Include(p => p.Category)
+                .Where(p => p.CategoryId == categoryId)
+                .ToListAsync();
+
+            if (products == null || !products.Any())
+                return NotFound($"No products found for Category ID {categoryId}");
+
+            var productDtos = products.Adapt<List<ProductWithRelationDTO>>();
+            return Ok(productDtos);
         }
 
         // PUT: api/Products/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutProduct(int id, ProductDTO ProductDto)
+        public async Task<IActionResult> PutProduct(int id, ProductWithIdDTO dto)
         {
-            if (id != ProductDto.ProductId)
+            if (id != dto.ProductId)
                 return BadRequest();
 
             var product = await _context.Products.FindAsync(id);
             if (product == null)
                 return NotFound();
 
-            product.ProductName = ProductDto.ProductName;
-            product.ProductPrice = ProductDto.ProductPrice;
-            product.CategoryId = ProductDto.CategoryId;
+            dto.Adapt(product);
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!ProductExists(id))
-                    return NotFound();
-                else
-                    throw;
-            }
-
+            await _context.SaveChangesAsync();
             return NoContent();
         }
 
         // POST: api/Products
         [HttpPost]
-        public async Task<ActionResult<ProductDTO>> PostProduct(ProductDTO dto)
+        public async Task<ActionResult<ProductWithIdDTO>> PostProduct(ProductDTO dto)
         {
-            var product = new Product
-            {
-                ProductName = dto.ProductName,
-                ProductPrice = dto.ProductPrice,
-                CategoryId = dto.CategoryId
-            };
+            var product = dto.Adapt<Product>();
 
             _context.Products.Add(product);
             await _context.SaveChangesAsync();
 
-            dto.ProductId = product.ProductId; // return created id
-            return CreatedAtAction(nameof(GetProduct), new { id = dto.ProductId }, dto);
+            var resultDto = product.Adapt<ProductWithIdDTO>();
+            return CreatedAtAction(nameof(GetProduct), new { id = product.ProductId }, resultDto);
         }
 
         // DELETE: api/Products/5
@@ -110,12 +99,8 @@ namespace GUI_Programmering_WebApi.Controllers
 
             _context.Products.Remove(product);
             await _context.SaveChangesAsync();
-            return NoContent();
-        }
 
-        private bool ProductExists(int id)
-        {
-            return _context.Products.Any(e => e.ProductId == id);
+            return NoContent();
         }
     }
 }

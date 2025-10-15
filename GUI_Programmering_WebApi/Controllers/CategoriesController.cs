@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GUI_Programmering_WebApi.Models;
+using Mapster;
 
 namespace GUI_Programmering_WebApi.Controllers
 {
@@ -8,94 +9,67 @@ namespace GUI_Programmering_WebApi.Controllers
     [ApiController]
     public class CategoriesController : ControllerBase
     {
-        private readonly GuiWebApiDatabaseContext _context;
+        private readonly DatabaseContext _context;
 
-        public CategoriesController(GuiWebApiDatabaseContext context)
+        public CategoriesController(DatabaseContext context)
         {
             _context = context;
         }
 
         // GET: api/Categories
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetCategories()
+        public async Task<ActionResult<IEnumerable<CategoryWithIdDTO>>> GetCategories()
         {
             var categories = await _context.Categories
-                .Select(c => new CategoryDTO
-                {
-                    CategoryId = c.CategoryId,
-                    CategoryName = c.CategoryName
-                })
+                .Include(c => c.Products) 
                 .ToListAsync();
 
-            return Ok(categories);
+            var dtos = categories.Adapt<List<CategoryWithIdDTO>>();
+            return Ok(dtos);
         }
 
         // GET: api/Categories/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<CategoryDTO>> GetCategory(int id)
+        public async Task<ActionResult<CategoryWithIdDTO>> GetCategory(int id)
         {
-            var category = await _context.Categories.FindAsync(id);
+            var category = await _context.Categories
+                .Include(c => c.Products)
+                .FirstOrDefaultAsync(c => c.CategoryId == id);
 
             if (category == null)
                 return NotFound();
 
-            var dto = new CategoryDTO
-            {
-                CategoryId = category.CategoryId,
-                CategoryName = category.CategoryName
-            };
-
+            var dto = category.Adapt<CategoryWithIdDTO>();
             return Ok(dto);
         }
 
         // PUT: api/Categories/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutCategory(int id, CategoryDTO CatDto)
+        public async Task<IActionResult> PutCategory(int id, CategoryWithIdDTO dto)
         {
-            if (id != CatDto.CategoryId)
+            if (id != dto.CategoryId)
                 return BadRequest();
 
             var category = await _context.Categories.FindAsync(id);
             if (category == null)
                 return NotFound();
 
-            category.CategoryName = CatDto.CategoryName;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!CategoryExists(id))
-                    return NotFound();
-                else
-                    throw;
-            }
+            dto.Adapt(category);
+            await _context.SaveChangesAsync();
 
             return NoContent();
         }
 
         // POST: api/Categories
         [HttpPost]
-        public async Task<ActionResult<CategoryDTO>> PostCategory(CategoryDTO dto)
+        public async Task<ActionResult<CategoryWithIdDTO>> PostCategory(CategoryDTO dto)
         {
-            var category = new Category
-            {
-                CategoryName = dto.CategoryName
-            };
-
+            var category = dto.Adapt<Category>();
             _context.Categories.Add(category);
             await _context.SaveChangesAsync();
 
-            // map back to DTO
-            var result = new CategoryDTO
-            {
-                CategoryId = category.CategoryId,
-                CategoryName = category.CategoryName
-            };
-
-            return CreatedAtAction(nameof(GetCategory), new { id = result.CategoryId }, result);
+            var resultDto = category.Adapt<CategoryWithIdDTO>();
+            return CreatedAtAction(nameof(GetCategory), new { id = category.CategoryId }, resultDto);
         }
 
         // DELETE: api/Categories/5
@@ -110,11 +84,6 @@ namespace GUI_Programmering_WebApi.Controllers
             await _context.SaveChangesAsync();
 
             return NoContent();
-        }
-
-        private bool CategoryExists(int id)
-        {
-            return _context.Categories.Any(e => e.CategoryId == id);
         }
     }
 }
