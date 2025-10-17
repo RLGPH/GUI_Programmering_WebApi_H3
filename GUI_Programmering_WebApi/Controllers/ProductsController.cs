@@ -18,28 +18,48 @@ namespace GUI_Programmering_WebApi.Controllers
 
         // GET: api/Products
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<ProductWithRelationDTO>>> GetProducts()
+        public async Task<ActionResult<IEnumerable<ProductWithImageDTO>>> GetProducts()
         {
             var products = await _context.Products
                 .Include(p => p.Category)
+                .Include(p => p.Image)
                 .ToListAsync();
 
-            var productDtos = products.Adapt<List<ProductWithRelationDTO>>();
+            // Map each product safely, including null checks
+            var productDtos = products.Select(product => new ProductWithImageDTO
+            {
+                ProductId = product.ProductId,
+                ProductName = product.ProductName,
+                ProductDescription = product.ProductDescription,
+                ProductPrice = product.ProductPrice,
+                Category = product.Category != null ? product.Category.Adapt<CategoryDTO>() : null,
+                Image = product.Image != null ? product.Image.Adapt<ImageDTO>() : null
+            }).ToList();
+
             return Ok(productDtos);
         }
 
         // GET: api/Products/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<ProductWithRelationDTO>> GetProduct(int id)
+        public async Task<ActionResult<ProductWithImageDTO>> GetProduct(int id)
         {
             var product = await _context.Products
                 .Include(p => p.Category)
+                .Include(p => p.Image)
                 .FirstOrDefaultAsync(p => p.ProductId == id);
 
-            if (product == null)
-                return NotFound();
+            if (product == null) return NotFound();
 
-            var dto = product.Adapt<ProductWithRelationDTO>();
+            var dto = new ProductWithImageDTO
+            {
+                ProductId = product.ProductId,
+                ProductName = product.ProductName,
+                ProductDescription = product.ProductDescription,
+                ProductPrice = product.ProductPrice,
+                Category = product.Category != null ? product.Category.Adapt<CategoryDTO>() : null,
+                Image = product.Image != null ? product.Image.Adapt<ImageDTO>() : null
+            };
+
             return Ok(dto);
         }
 
@@ -52,7 +72,7 @@ namespace GUI_Programmering_WebApi.Controllers
                 .Where(p => p.CategoryId == categoryId)
                 .ToListAsync();
 
-            if (products == null || !products.Any())
+            if (!products.Any())
                 return NotFound($"No products found for Category ID {categoryId}");
 
             var productDtos = products.Adapt<List<ProductWithRelationDTO>>();
@@ -71,8 +91,8 @@ namespace GUI_Programmering_WebApi.Controllers
                 return NotFound();
 
             dto.Adapt(product);
-
             await _context.SaveChangesAsync();
+
             return NoContent();
         }
 
@@ -81,7 +101,6 @@ namespace GUI_Programmering_WebApi.Controllers
         public async Task<ActionResult<ProductWithIdDTO>> PostProduct(ProductDTO dto)
         {
             var product = dto.Adapt<Product>();
-
             _context.Products.Add(product);
             await _context.SaveChangesAsync();
 

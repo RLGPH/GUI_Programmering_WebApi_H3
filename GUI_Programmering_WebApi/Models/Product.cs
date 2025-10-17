@@ -12,9 +12,11 @@ public partial class Product
 
     public decimal ProductPrice { get; set; }
 
-    public required string ImageLink {  get; set; } 
+    public int ImageId {  get; set; } 
 
     public int CategoryId { get; set; }
+
+    public virtual Image Image { get; set; } = null!;
 
     public virtual Category Category { get; set; } = null!;
 }

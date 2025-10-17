@@ -3,6 +3,7 @@ using GUI_Programmering_WebApi.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GUI_Programmering_WebApi.Migrations
 {
     [DbContext(typeof(DatabaseContext))]
-    partial class DatabaseContextModelSnapshot : ModelSnapshot
+    [Migration("20251017075333_AddImageTableAndProductRelation")]
+    partial class AddImageTableAndProductRelation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -39,28 +42,6 @@ namespace GUI_Programmering_WebApi.Migrations
                     b.ToTable("Categories");
                 });
 
-            modelBuilder.Entity("GUI_Programmering_WebApi.Models.Image", b =>
-                {
-                    b.Property<int>("ImageId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ImageId"));
-
-                    b.Property<string>("ImageName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<string>("ImageUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.HasKey("ImageId");
-
-                    b.ToTable("Images");
-                });
-
             modelBuilder.Entity("GUI_Programmering_WebApi.Models.Product", b =>
                 {
                     b.Property<int>("ProductId")
@@ -72,8 +53,9 @@ namespace GUI_Programmering_WebApi.Migrations
                     b.Property<int>("CategoryId")
                         .HasColumnType("int");
 
-                    b.Property<int>("ImageId")
-                        .HasColumnType("int");
+                    b.Property<string>("ImageId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ProductDescription")
                         .HasMaxLength(200)
@@ -91,8 +73,6 @@ namespace GUI_Programmering_WebApi.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.HasIndex("ImageId");
-
                     b.ToTable("Products");
                 });
 
@@ -104,23 +84,10 @@ namespace GUI_Programmering_WebApi.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("GUI_Programmering_WebApi.Models.Image", "Image")
-                        .WithMany("Products")
-                        .HasForeignKey("ImageId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.Navigation("Category");
-
-                    b.Navigation("Image");
                 });
 
             modelBuilder.Entity("GUI_Programmering_WebApi.Models.Category", b =>
-                {
-                    b.Navigation("Products");
-                });
-
-            modelBuilder.Entity("GUI_Programmering_WebApi.Models.Image", b =>
                 {
                     b.Navigation("Products");
                 });
